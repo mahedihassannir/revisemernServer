@@ -18,7 +18,39 @@ require("dotenv").config()
 
 
 
-const { MongoClient, ServerApiVersion, Db } = require('mongodb');
+// jwt verify 
+
+function jwtverify(req, res, next) {
+
+
+    const authorization = req.headers.authorization
+    if (!authorization) {
+        return res.status(401).send({ err: "user not valid" })
+    }
+
+    const token = authorization.split(' ')[1]
+
+    jwt.verify(token, process.env.JWT_TOKEN, (err, decoded) => {
+        if (err) {
+            return res.status(403).send("user aunauthorize")
+        }
+
+        req.decoded = decoded
+
+        console.log(decoded);
+
+        next()
+    })
+
+
+}
+
+// jwt verify  ends
+
+
+
+
+const { MongoClient, ServerApiVersion, Db, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.DB_EMAIL}:${process.env.DB_PASS}@cluster0.p7bqic0.mongodb.net/?retryWrites=true&w=majority`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -67,13 +99,19 @@ async function run() {
             res.send(result)
         })
 
-        app.get("/carts", async (req, res) => {
+        app.get("/carts", jwtverify, async (req, res) => {
 
 
             const email = req.query.email
             console.log(email);
             if (!email) {
                 res.send([])
+            }
+
+            const authorisedemail = req.decoded.email
+
+            if (email != authorisedemail) {
+                return res.status(403).send("user email is not matching")
             }
 
             const query = { email: email }
@@ -88,6 +126,18 @@ async function run() {
 
 
         })
+
+        // cart delete method
+        app.delete('/cartsdel/:id', async (req, res) => {
+            const id = req.params.id
+
+            const filter = { _id: new ObjectId(id) }
+
+            const result = await UserCardData.deleteOne(filter)
+            res.send(result)
+
+        })
+        // cart delete method ends
 
 
 
